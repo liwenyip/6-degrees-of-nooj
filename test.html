@@ -1,25 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
+
+<script src=""></script>
+
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
-<script src="https://fastcdn.org/Papa-Parse/4.1.2/papaparse.min.js"></script>
-<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
 <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/4.1.2/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.min.css"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/es5-shim/4.5.8/es5-shim.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/es6-shim/0.35.1/es6-shim.min.js"></script>
 
 <script>
 
 // Global vars
 
-var quartets = [];
-var singers = [];
-var nodes = [];
-var edges = [];
-var rels = [];
+var quartets = {}; // dictionary
+var singers = {}; // dictionary
 
-
-// Read the CSV file
+// Read the CSV file and build a network graph model
 Papa.parse("https://raw.githubusercontent.com/liwenyip/6-degrees-of-barbershop/master/BABS%20Quartet%20Singers.csv", {
  download: true,
  complete: function(results) {
@@ -27,25 +28,20 @@ Papa.parse("https://raw.githubusercontent.com/liwenyip/6-degrees-of-barbershop/m
   $.each(results.data, function(i, row) {
     q = row[0];
     s = row[1];
-    if ($.inArray(q, quartets) === -1 && q) {
-      quartets.push(q);
-      nodes.push({id:q, label:q, group:"quartets"});
-    }
-    if ($.inArray(s, singers) === -1 && s) {
-      singers.push(s);
-      nodes.push({id:s, label:s, group:"singers"});
-    }
-    rels.push({q:q, s:s});
-    edges.push({from:q, to:s});
+    // create the quartet and singer if they don't exist
+    if (!quartets.hasOwnProperty(q)) quartets[q] = {name:q, type:"q", links:new Set()};
+    if (!singers.hasOwnProperty(s))  singers[s]  = {name:s, type:"s", links:new Set()};
+    // create links between quartet and singer
+    quartets[q].links.add(singers[s]);
+    singers[s].links.add(quartets[s]);
   });
   // Set autocomplete on input
   $( "#singer" ).autocomplete({
-    source: singers
+    source: Object.keys(singers)
   });
   // debug
   console.log(quartets);
   console.log(singers);
-  console.log(edges);  
  }
 });
 
