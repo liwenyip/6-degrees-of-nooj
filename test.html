@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
+<script src="https://fastcdn.org/Papa-Parse/4.1.2/papaparse.min.js"></script>
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.min.css"></script>
+
+<script>
+
+// Global vars
+
+var quartets = [];
+var singers = [];
+var nodes = [];
+var edges = [];
+var rels = [];
+
+
+// Read the CSV file
+Papa.parse("https://raw.githubusercontent.com/liwenyip/6-degrees-of-barbershop/master/BABS%20Quartet%20Singers.csv", {
+ download: true,
+ complete: function(results) {
+  // compile unique lists of quartets, singers, and relationships
+  $.each(results.data, function(i, row) {
+    q = row[0];
+    s = row[1];
+    if ($.inArray(q, quartets) === -1 && q) {
+      quartets.push(q);
+      nodes.push({id:q, label:q, group:"quartets"});
+    }
+    if ($.inArray(s, singers) === -1 && s) {
+      singers.push(s);
+      nodes.push({id:s, label:s, group:"singers"});
+    }
+    rels.push({q:q, s:s});
+    edges.push({from:q, to:s});
+  });
+  // Set autocomplete on input
+  $( "#singer" ).autocomplete({
+    source: singers
+  });
+  // debug
+  console.log(quartets);
+  console.log(singers);
+  console.log(edges);  
+ }
+});
+
+function addChildren(node) {
+  children = [];
+}
+
+
+// Make a graph
+$(function() {
+  $( "#go" ).click(function() {
+  // create a network, starting with the selected Singer
+  // Do a breadth-first search from the root node
+  rootNode = {type: "singer", name: $("#singer").val(), children: []};
+  // initialise lists
+  visited = [];  // list of nodes that have already been visited
+  toVisit = [rootNode];  // queue of nodes to be visited
+  // Start the search
+  while (toVisit.length > 0) {
+    // get the next node to visit and mark it as visited
+    node = toVisit.shift()
+    if ($.inArray(node.name, visited) !== -1) continue;
+    visited.push(node.name);
+    console.log(node.name);
+    // search the relationships list for children
+    $.each(rels, function(i, rel) {
+      // check if this is a child
+      if (node.type == "singer" && node.name == rel.s && rel.q) {
+        child = {type:"quartet", name:rel.q, children:[]};
+      } else if (node.type == "quartet" && node.name == rel.q && rel.s) {
+        child = {type:"singer", name:rel.s, children:[]};
+      } else {
+        return true; // not a child, skip to the next iteration
+      }
+      // Add the child node to node.children and toVisit, but only if we've not visited this node before
+      if ($.inArray(child.name, visited) === -1) {
+        node.children.push(child);
+        toVisit.push(child);
+      }
+    });
+  }
+  window.alert(JSON.stringify(rootNode));
+  
+  
+  var container = document.getElementById('network');
+  var data = {
+    nodes: new vis.DataSet(nodes.slice(0,10)),
+    edges: new vis.DataSet(edges)
+  };
+  var options = {};
+  var network = new vis.Network(container, data, options);
+  });
+});
+
+</script>
+
+  <style type="text/css">
+    #network {
+      width: 600px;
+      height: 400px;
+      border: 1px solid lightgray;
+    }
+  </style>
+
+</head>
+<body>
+
+<h2>Six Degrees of Barbershop</h2>
+
+<div class="ui-widget">
+  <label for="singer">Singer: </label>
+  <input id="singer">
+  <button id="go">Go!</button>
+</div>
+
+<div id="network"></div>
+
+</body>
+</html>
