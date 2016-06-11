@@ -35,8 +35,8 @@ Papa.parse("https://raw.githubusercontent.com/liwenyip/6-degrees-of-barbershop/m
     if ($.inArray(singers[s], quartets[q].links) == -1) quartets[q].links.push(singers[s]);
     if ($.inArray(quartets[q], singers[s].links) == -1) singers[s].links.push(quartets[q]);
   });
-  // Set autocomplete on input
-  $( "#singer" ).autocomplete({
+  // Set autocomplete on inputs
+  $( "#from, #to" ).autocomplete({
     source: Object.keys(singers)
   });
   // debug
@@ -45,45 +45,84 @@ Papa.parse("https://raw.githubusercontent.com/liwenyip/6-degrees-of-barbershop/m
  }
 });
 
+function getLabel(node) {
+  label = node.name;
+  if (node.type == "s") label += " (" + node.distance + ")";
+  return label;
+}
+
 // Make a graph
 $(function() {
   $( "#go" ).click(function() {
-  // debug
-  console.log("Building model...");
-  // initialise lists
-  toVisit = [singers[$("#singer").val()]];  // queue of nodes to be visited
-  visited = [] // list of nodes that have been visited
-  graphNodes = []; 
-  graphLinks = []; 
-  // create a network, starting with the selected Singer
-  // Do a breadth-first search from the root node
-  while (toVisit.length > 0) {
-    // get the next node to visit, mark it as visited
-    node = toVisit.shift()
-    visited.push(node);
-    // create a copy of the node and add it to the graph
-    graphNodes.push({id:node.name, label:node.name, group:node.type});
-    // loop through linked nodes
-    $.each(node.links, function(i, link) {
-      if ($.inArray(link, visited) != -1) return true; // skip linked nodes we've already visited
-      if ($.inArray(link, toVisit) != -1) return true; // skip linked nodes we've already checked
-      graphLinks.push({from:node.name, to:link.name}); // add link (edge) to the graph
-      toVisit.push(link); // add linked node to list to visit
-    });
-  }
-  // Change the group of the first node
-  graphNodes[0].group = "Root Node";
-  // debug
-  console.log("Visualising...");
-  // Do the visualisation stuff
-  var container = document.getElementById('network');
-  var data = {
-    nodes: new vis.DataSet(graphNodes.slice(0,150)),
-    edges: new vis.DataSet(graphLinks)
-  };
-  var options = {};
-  var network = new vis.Network(container, data, options);
-  console.log("Done...");
+    // debug
+    console.log("Building model...");
+    // initialise root node
+    fromNode = singers[$("#from").val()];
+    fromNode.distance = 0;
+    // initialise Nooj
+    toNode = singers[$("#to").val()];
+    toNode.distance = -1;
+    // initialise lists
+    toVisit = [fromNode];  // queue of nodes to be visited
+    visited = [] // list of nodes that have been visited
+    graphNodes = []; 
+    graphLinks = []; 
+    // create a network, starting with the selected Singer
+    // Do a breadth-first search from the root node
+    while (toVisit.length > 0) {
+      // get the next node to visit, mark it as visited
+      node = toVisit.shift()
+      visited.push(node);
+      // Set graph node group
+      if (node == toNode) group = "To";
+      else if (node == fromNode) group = "From";
+      else group = node.type;
+      // create a copy of the node and add it to the graph
+      graphNodes.push({id:node.name, label:getLabel(node), group:group, level:node.distance});
+      // loop through linked nodes
+      $.each(node.links, function(i, link) {
+        if ($.inArray(link, visited) != -1) return true; // skip linked nodes we've already visited
+        if ($.inArray(link, toVisit) != -1) return true; // skip linked nodes we've already checked
+        graphLinks.push({from:node.name, to:link.name}); // add link (edge) to the graph
+        toVisit.push(link); // add linked node to list to visit
+        link.distance = node.distance + 0.5;
+      });
+    }
+    // Check if we reached the target and calculate shortest path
+    msg = "<p>";
+    if (toNode.distance == -1) {
+      msg += fromNode.name + " is not connected to " + toNode.name;
+    } else {
+      if (fromNode.name == "Nooj") {
+        msg += toNode.name + " has a Nooj number of " + toNode.distance;
+      } else {
+        msg += toNode.name + " is connected to " + fromNode.name + " by " + toNode.distance + " quartets:"
+      }
+      next = toNode;
+      path = [toNode];
+      while (path[0] != fromNode) {
+        $.each(path[0].links, function(i, link) {
+          if (link.distance < next.distance) next = link;
+        });
+        path.unshift(next);
+      }
+      msg += "</p><p>" + path.map(getLabel).join(' -> ') + "</p>";
+      $("#result").html(msg);
+    }
+    
+    // debug
+    /*
+    console.log("Visualising...");
+    // Do the visualisation stuff
+    var container = document.getElementById('network');
+    var data = {
+      nodes: new vis.DataSet(graphNodes.slice(0,150)),
+      edges: new vis.DataSet(graphLinks)
+    };
+    var options = {}; //{layout:{hierarchical:{direction:"LR"}}};
+    var network = new vis.Network(container, data, options);
+    console.log("Done...");
+    */
   });
 });
 
@@ -100,14 +139,16 @@ $(function() {
 </head>
 <body>
 
-<h2>Six Degrees of Barbershop</h2>
+<h2>Six Degrees of Nooj</h2>
 
 <div class="ui-widget">
-  <label for="singer">Singer: </label>
-  <input id="singer">
+  <label for="from">From: </label>
+  <input id="from" value="Nooj">
+  <label for="to">To: </label>
+  <input id="to">
   <button id="go">Go!</button>
 </div>
-
+<div id="result"><p>&nbsp;</p></div>
 <div id="network"></div>
 
 </body>
