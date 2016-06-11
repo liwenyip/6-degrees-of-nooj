@@ -29,11 +29,11 @@ Papa.parse("https://raw.githubusercontent.com/liwenyip/6-degrees-of-barbershop/m
     q = row[0];
     s = row[1];
     // create the quartet and singer if they don't exist
-    if (!quartets.hasOwnProperty(q)) quartets[q] = {name:q, type:"q", links:new Set()};
-    if (!singers.hasOwnProperty(s))  singers[s]  = {name:s, type:"s", links:new Set()};
-    // create links between quartet and singer
-    quartets[q].links.add(singers[s]);
-    singers[s].links.add(quartets[s]);
+    if (!quartets.hasOwnProperty(q)) quartets[q] = {name:q, type:"q", links:[]};
+    if (!singers.hasOwnProperty(s))  singers[s]  = {name:s, type:"s", links:[]};
+    // create links between quartet and singer (but don't create duplicates)
+    if ($.inArray(singers[s], quartets[q].links) == -1) quartets[q].links.push(singers[s]);
+    if ($.inArray(quartets[q], singers[s].links) == -1) singers[s].links.push(quartets[q]);
   });
   // Set autocomplete on input
   $( "#singer" ).autocomplete({
@@ -45,54 +45,45 @@ Papa.parse("https://raw.githubusercontent.com/liwenyip/6-degrees-of-barbershop/m
  }
 });
 
-function addChildren(node) {
-  children = [];
-}
-
-
 // Make a graph
 $(function() {
   $( "#go" ).click(function() {
+  // debug
+  console.log("Building model...");
+  // initialise lists
+  toVisit = [singers[$("#singer").val()]];  // queue of nodes to be visited
+  visited = [] // list of nodes that have been visited
+  graphNodes = []; 
+  graphLinks = []; 
   // create a network, starting with the selected Singer
   // Do a breadth-first search from the root node
-  rootNode = {type: "singer", name: $("#singer").val(), children: []};
-  // initialise lists
-  visited = [];  // list of nodes that have already been visited
-  toVisit = [rootNode];  // queue of nodes to be visited
-  // Start the search
   while (toVisit.length > 0) {
-    // get the next node to visit and mark it as visited
+    // get the next node to visit, mark it as visited
     node = toVisit.shift()
-    if ($.inArray(node.name, visited) !== -1) continue;
-    visited.push(node.name);
-    console.log(node.name);
-    // search the relationships list for children
-    $.each(rels, function(i, rel) {
-      // check if this is a child
-      if (node.type == "singer" && node.name == rel.s && rel.q) {
-        child = {type:"quartet", name:rel.q, children:[]};
-      } else if (node.type == "quartet" && node.name == rel.q && rel.s) {
-        child = {type:"singer", name:rel.s, children:[]};
-      } else {
-        return true; // not a child, skip to the next iteration
-      }
-      // Add the child node to node.children and toVisit, but only if we've not visited this node before
-      if ($.inArray(child.name, visited) === -1) {
-        node.children.push(child);
-        toVisit.push(child);
-      }
+    visited.push(node);
+    // create a copy of the node and add it to the graph
+    graphNodes.push({id:node.name, label:node.name, group:node.type});
+    // loop through linked nodes
+    $.each(node.links, function(i, link) {
+      if ($.inArray(link, visited) != -1) return true; // skip linked nodes we've already visited
+      if ($.inArray(link, toVisit) != -1) return true; // skip linked nodes we've already checked
+      graphLinks.push({from:node.name, to:link.name}); // add link (edge) to the graph
+      toVisit.push(link); // add linked node to list to visit
     });
   }
-  window.alert(JSON.stringify(rootNode));
-  
-  
+  // Change the group of the first node
+  graphNodes[0].group = "Root Node";
+  // debug
+  console.log("Visualising...");
+  // Do the visualisation stuff
   var container = document.getElementById('network');
   var data = {
-    nodes: new vis.DataSet(nodes.slice(0,10)),
-    edges: new vis.DataSet(edges)
+    nodes: new vis.DataSet(graphNodes.slice(0,150)),
+    edges: new vis.DataSet(graphLinks)
   };
   var options = {};
   var network = new vis.Network(container, data, options);
+  console.log("Done...");
   });
 });
 
@@ -100,8 +91,8 @@ $(function() {
 
   <style type="text/css">
     #network {
-      width: 600px;
-      height: 400px;
+      width: 100%;
+      height: 800px;
       border: 1px solid lightgray;
     }
   </style>
