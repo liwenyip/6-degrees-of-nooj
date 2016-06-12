@@ -157,7 +157,7 @@ $(function() {
         node2.distance = node.distance + 1; // calculate distance from fromNode
       });
     }
-    console.log("Furtherest node is " + furtherestNode.name + " who has distance of " + furtherestNode.distance/2);
+    console.log("Furtherest node from " + fromNode.name + " is " + furtherestNode.name + " who has distance of " + furtherestNode.distance/2);
     // Check if we reached the target and calculate shortest path
     console.log("Calculating shortest path...");
     msg = "<p>";
@@ -166,6 +166,8 @@ $(function() {
     } else {
       // calculate distance
       msg += fromNode.name + " has a " + toNode.name + " number of " + toNode.distance	/2 + ": ";
+      permalink = "http://liwenyip.github.io/6-degrees-of-nooj/?from=" + fromNode.name + "&to=" + toNode.name;
+      msg += " (Permalink: <a href=\"" + permalink + "\">" + permalink + "</a>)";
       // find ONE shortest path from fromNode to toNode
       next = toNode;
       path = [toNode]; // list of nodes along shortest path
@@ -178,8 +180,6 @@ $(function() {
       }      
       msg += "</p><p>" + path.map(getLabel).join(' -> ') + "</p>";
     }
-    permalink = "http://liwenyip.github.io/6-degrees-of-nooj/?from=" + fromNode.name + "&to=" + toNode.name;
-    msg += "</p><p>Permalink: <a href=\"" + permalink + "\">" + permalink + "</a>";
     $("#result").html(msg); // display result
     
     // initialise network
