@@ -4,7 +4,7 @@ Q: Who made this website?
 A: [Li-Wen Yip](https://www.facebook.com/liwen.yip) wrote the code. [Sam Hubbard](http://www.barbershopwiki.com/wiki/Sam_Hubbard) compiled the original source data set (thanks Sam!)
 
 Q: Why is it named after Nooj?   
-A: ~~Because everyone knows he's BABS' best baritone~~ I couldn't think of any other Mononymous barbershoppers in BABS.
+A: ~~Because everyone knows he's BABS' best baritone~~ I couldn't think of any other Mononymous barbershoppers in BABS. And as it happens, Nooj is actually quite central in the network - the largest Nooj number of anyone in the database (at time of writing) is 8.
 
 Q: Why are there some links missing when I select "Show me x degrees of x"?   
 A: Because it's only showing the closest links to each person. If it included ALL links then it would look very messy and have no hope of layout out nicely.
