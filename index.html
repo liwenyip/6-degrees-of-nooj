@@ -26,6 +26,34 @@
 
 <script>
 
+// helper function
+function getLabel(node) {
+  label = node.name.replace(/\s(\S{3})/g,"\n$1");
+  if (node.type == "s") label += "\n(" + node.distance/2 + ")";
+  return label;
+}
+
+// helper function
+function getGroup(node, toNode, fromNode) {
+  if (node == toNode) return "To";
+  if (node == fromNode) return "From";
+  return node.type;
+}
+
+// helper function
+function getUrlVars()
+{
+    var vars = [], hash;
+    var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+    for(var i = 0; i < hashes.length; i++)
+    {
+        hash = hashes[i].split('=');
+        vars.push(hash[0]);
+        vars[hash[0]] = hash[1].replace("%20", " ");
+    }
+    return vars;
+}
+
 // Global vars
 
 var quartets = {}; // dictionary
@@ -51,35 +79,28 @@ Papa.parse("https://raw.githubusercontent.com/liwenyip/6-degrees-of-nooj/gh-page
   $( "#from, #to" ).autocomplete({
     source: Object.keys(singers)
   });
+  // read to/from from URL string if available
+  vars = getUrlVars();
+  if (vars["to"]) $("#to").val(vars["to"]);
+  if (vars["from"]) $("#from").val(vars["from"]);
+  updateTitles();
   // debug
   console.log(quartets);
   console.log(singers);
  }
 });
 
-// helper function
-function getLabel(node) {
-  label = node.name.replace(/\s(\S{3})/g,"\n$1");
-  if (node.type == "s") label += "\n(" + node.distance/2 + ")";
-  return label;
-}
-
-// helper function
-function getGroup(node, toNode, fromNode) {
-  if (node == toNode) return "To";
-  if (node == fromNode) return "From";
-  return node.type;
-}
-
-
-$(function() {
-  // update dropdown when fromNode changes
-  $("#from, #to").focusout(function() {
+function updateTitles() {
     for (i = 1; i <= 6; i++) {
       $("#" + i + "deg").html(i + " degrees of " + $("#from").val());
       $("#paths").html("Shortest paths between " + $("#from").val() + " and " + $("#to").val());
+      $("h1, title").html("Six Degrees of " + $("#to").val());
     }
-  });
+}
+
+$(function() {
+  // update dropdown when fromNode changes
+  $("#from, #to").focusout(function() {updateTitles()});
   // Make a graph
   $( "#go" ).click(function() {
     // create the new graph
@@ -113,7 +134,7 @@ $(function() {
     fromNode.distance = 0;
     // initialise Nooj
     toNode = singers[$("#to").val()];
-    toNode.distance = -1;
+    toNode.distance = 0;
     // initialise lists
     toVisit = [fromNode];  // queue of nodes to be visited
     visited = [] // list of nodes that have been visited
@@ -138,21 +159,11 @@ $(function() {
     // Check if we reached the target and calculate shortest path
     console.log("Calculating shortest path...");
     msg = "<p>";
-    if (toNode == fromNode) {
-      if (toNode.name == "Nooj") {
-        msg += "Nooj has a Nooj number of 0. (duh)";
-      } else {
-        msg += fromNode.name + " is the same person as " + toNode.name;
-      }
-    } else if (toNode.distance == -1) {
+    if (toNode != fromNode && toNode.distance == 0) {
       msg += fromNode.name + " is not connected to " + toNode.name;
     } else {
       // calculate distance
-      if (toNode.name == "Nooj") {
-        msg += fromNode.name + " has a Nooj number of " + toNode.distance	/2 + ": ";
-      } else {
-        msg += fromNode.name + " is connected to " + toNode.name + " by " + toNode.distance/2 + " quartets:"
-      }
+      msg += fromNode.name + " has a " + toNode.name + " number of " + toNode.distance	/2 + ": ";
       // find ONE shortest path from fromNode to toNode
       next = toNode;
       path = [toNode]; // list of nodes along shortest path
@@ -165,6 +176,8 @@ $(function() {
       }      
       msg += "</p><p>" + path.map(getLabel).join(' -> ') + "</p>";
     }
+    permalink = "http://liwenyip.github.io/6-degrees-of-nooj?from=" + fromNode.name + "&to=" + toNode.name;
+    msg += "</p><p>Permalink: <a href=\"" + permalink + "\">" + permalink + "</a>";
     $("#result").html(msg); // display result
     
     // initialise network
@@ -263,6 +276,7 @@ $(function() {
     
   </style>
 
+  <title>Six Degrees of Nooj</title>
 </head>
 <body>
 
