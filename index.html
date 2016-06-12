@@ -40,8 +40,9 @@ Papa.parse("https://raw.githubusercontent.com/liwenyip/6-degrees-of-nooj/gh-page
   $.each(results.data, function(i, row) {
     q = row[0];
     s = row[1];
+    a = row[3];
     // create the quartet and singer if they don't exist
-    if (!quartets.hasOwnProperty(q)) quartets[q] = {name:q, type:"q", links:[]};
+    if (!quartets.hasOwnProperty(q)) quartets[q] = {name:q + " (" + a + ")", type:"q", links:[]};
     if (!singers.hasOwnProperty(s))  singers[s]  = {name:s, type:"s", links:[]};
     // create links between quartet and singer (but don't create duplicates)
     if ($.inArray(singers[s], quartets[q].links) == -1) quartets[q].links.push(singers[s]);
@@ -59,7 +60,7 @@ Papa.parse("https://raw.githubusercontent.com/liwenyip/6-degrees-of-nooj/gh-page
 
 // helper function
 function getLabel(node) {
-  label = node.name.replace(/\s(\w{3})/g,"\n$1");
+  label = node.name.replace(/\s(\S{3})/g,"\n$1");
   if (node.type == "s") label += "\n(" + node.distance/2 + ")";
   return label;
 }
