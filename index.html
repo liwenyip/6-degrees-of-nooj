@@ -140,10 +140,12 @@ $(function() {
     visited = [] // list of nodes that have been visited
     visitedLinks = [] // list of links, use for graphing web
     // Create a new radial model, by doing a breadth-first search starting at fromNode
+    furtherestNode = fromNode;
     while (toVisit.length > 0) {
-      // get the next node to visit, mark it as visited
+      // get the next node to visit, mark it as visited, check for max distance
       node = toVisit.shift()
       visited.push(node);
+      if (node.distance > furtherestNode.distance) furtherestNode = node;
       // Loop through linked nodes, create radial links
       node.radialLinks = []; // clear any previous links
       $.each(node.links, function(i, node2) {
@@ -155,7 +157,7 @@ $(function() {
         node2.distance = node.distance + 1; // calculate distance from fromNode
       });
     }
-    
+    console.log("Furtherest node is " + furtherestNode.name + " who has distance of " + furtherestNode.distance/2);
     // Check if we reached the target and calculate shortest path
     console.log("Calculating shortest path...");
     msg = "<p>";
@@ -176,7 +178,7 @@ $(function() {
       }      
       msg += "</p><p>" + path.map(getLabel).join(' -> ') + "</p>";
     }
-    permalink = "http://liwenyip.github.io/6-degrees-of-nooj?from=" + fromNode.name + "&to=" + toNode.name;
+    permalink = "http://liwenyip.github.io/6-degrees-of-nooj/?from=" + fromNode.name + "&to=" + toNode.name;
     msg += "</p><p>Permalink: <a href=\"" + permalink + "\">" + permalink + "</a>";
     $("#result").html(msg); // display result
     
