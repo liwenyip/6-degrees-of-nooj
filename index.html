@@ -38,11 +38,10 @@ Papa.parse("https://raw.githubusercontent.com/liwenyip/6-degrees-of-nooj/gh-page
  complete: function(results) {
   // compile unique lists of quartets, singers, and relationships
   $.each(results.data, function(i, row) {
-    q = row[0];
+    q = row[0] + " (" + row[3] + ")"; // name (affiliation)
     s = row[1];
-    a = row[3];
     // create the quartet and singer if they don't exist
-    if (!quartets.hasOwnProperty(q)) quartets[q] = {name:q + " (" + a + ")", type:"q", links:[]};
+    if (!quartets.hasOwnProperty(q)) quartets[q] = {name:q, type:"q", links:[]};
     if (!singers.hasOwnProperty(s))  singers[s]  = {name:s, type:"s", links:[]};
     // create links between quartet and singer (but don't create duplicates)
     if ($.inArray(singers[s], quartets[q].links) == -1) quartets[q].links.push(singers[s]);
@@ -76,7 +75,7 @@ function getGroup(node, toNode, fromNode) {
 $(function() {
   // update dropdown when fromNode changes
   $("#from, #to").focusout(function() {
-    for (i = 2; i <= 6; i++) {
+    for (i = 1; i <= 6; i++) {
       $("#" + i + "deg").html(i + " degrees of " + $("#from").val());
       $("#paths").html("Shortest paths between " + $("#from").val() + " and " + $("#to").val());
     }
@@ -280,6 +279,7 @@ $(function() {
     <label for="graphtype">Show me: </label>
     <select id="graphtype">
       <option id="paths" value="paths">Shortest paths between them</option>
+      <option id="1deg" value=1>1 degrees of x</option>
       <option id="2deg" value=2>2 degrees of x</option>
       <option id="3deg" value=3>3 degrees of x</option>
       <option id="4deg" value=4>4 degrees of x</option>
