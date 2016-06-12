@@ -4,14 +4,14 @@
 
 <script src=""></script>
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
-<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
-<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/4.1.2/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.min.css"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/es5-shim/4.5.8/es5-shim.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/es6-shim/0.35.1/es6-shim.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/themes/blitzer/jquery-ui.min.css">
 
 <script>
   (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -30,6 +30,7 @@
 
 var quartets = {}; // dictionary
 var singers = {}; // dictionary
+var timeOuts = [];
 
 // Read the CSV file and build a network graph model
 Papa.parse("https://raw.githubusercontent.com/liwenyip/6-degrees-of-nooj/gh-pages/BABS%20Quartet%20Singers.csv", {
@@ -56,33 +57,55 @@ Papa.parse("https://raw.githubusercontent.com/liwenyip/6-degrees-of-nooj/gh-page
  }
 });
 
+// helper function
 function getLabel(node) {
-  label = node.name;
-  if (node.type == "s") label += " (" + node.distance + ")";
+  label = node.name.replace(/\s(\w{3})/g,"\n$1");
+  if (node.type == "s") label += "\n(" + node.distance/2 + ")";
   return label;
 }
 
+// helper function
 function getGroup(node, toNode, fromNode) {
   if (node == toNode) return "To";
   if (node == fromNode) return "From";
   return node.type;
 }
 
-// Make a graph
+
 $(function() {
+  // update dropdown when fromNode changes
+  $("#from, #to").focusout(function() {
+    for (i = 2; i <= 6; i++) {
+      $("#" + i + "deg").html(i + " degrees of " + $("#from").val());
+      $("#paths").html("Shortest paths between " + $("#from").val() + " and " + $("#to").val());
+    }
+  });
+  // Make a graph
   $( "#go" ).click(function() {
     // create the new graph
     console.log("Creating graph object...");
-    graphLinks = new vis.DataSet([]);
-    graphNodes = new vis.DataSet([]);
     var container = document.getElementById('network');
-    var data = {
-      nodes: graphNodes,
-      edges: graphLinks
+    var data = {/* nodes: graphNodes, edges: graphLinks */};
+    /* 
+    // Development mode options
+    var options = { configure: {
+          filter:function (option, path) {
+            if (path.indexOf('physics') !== -1) {
+              return true;
+            }
+            if (path.indexOf('smooth') !== -1 || option === 'smooth') {
+              return true;
+            }
+            return false;
+          },
+          container: document.getElementById('config')
+        }
     };
-    var options = {};
+    */
+    var options = {}; // override previous options
     var network = new vis.Network(container, data, options);
-    
+    // Clear any unexecuted timeout events
+    while (timeOuts.length > 0) clearTimeout(timeOuts.pop());
     // Traverse the graph model
     console.log("Traversing model...");
     // initialise root node
@@ -95,19 +118,20 @@ $(function() {
     toVisit = [fromNode];  // queue of nodes to be visited
     visited = [] // list of nodes that have been visited
     visitedLinks = [] // list of links, use for graphing web
-    // create a network, starting with the selected Singer
-    // Do a breadth-first search from the root node
+    // Create a new radial model, by doing a breadth-first search starting at fromNode
     while (toVisit.length > 0) {
       // get the next node to visit, mark it as visited
       node = toVisit.shift()
       visited.push(node);
-      // loop through linked nodes
+      // Loop through linked nodes, create radial links
+      node.radialLinks = []; // clear any previous links
       $.each(node.links, function(i, node2) {
         if ($.inArray(node2, visited) != -1) return true; // skip linked nodes we've already visited
-        if ($.inArray(node2, toVisit) != -1) return true; // skip linked nodes we've already checked
-        visitedLinks.push({from:node.name, to:node2.name}); // add link (edge) to the graph
+        if ($.inArray(node2, toVisit) != -1) return true; // skip linked nodes we're already planning vo visit (prevents non-radial links)
+        node.radialLinks.push(node2); // create radial link
+        // visitedLinks.push({from:node.name, to:node2.name}); // add link (edge) to the graph
         toVisit.push(node2); // add linked node to list to visit
-        node2.distance = node.distance + 0.5;
+        node2.distance = node.distance + 1; // calculate distance from fromNode
       });
     }
     
@@ -118,14 +142,15 @@ $(function() {
     else {
       // calculate distance
       if (toNode.name == "Nooj") {
-        msg += fromNode.name + " has a Nooj number of " + toNode.distance + ": ";
+        msg += fromNode.name + " has a Nooj number of " + toNode.distance	/2 + ": ";
       } else {
-        msg += fromNode.name + " is connected to " + toNode.name + " by " + toNode.distance + " quartets:"
+        msg += fromNode.name + " is connected to " + toNode.name + " by " + toNode.distance/2 + " quartets:"
       }
-      // find shortest single path
+      // find ONE shortest path from fromNode to toNode
       next = toNode;
-      path = [toNode];
+      path = [toNode]; // list of nodes along shortest path
       while (path[0] != fromNode) {
+        // find the linked node that is next-closest to fromNode
         $.each(path[0].links, function(j, link) {
           if (link.distance < next.distance) next = link;
         });
@@ -133,35 +158,69 @@ $(function() {
       }      
       msg += "</p><p>" + path.map(getLabel).join(' -> ') + "</p>";
     }
-    $("#result").html(msg);
+    $("#result").html(msg); // display result
     
+    // initialise network
+    graphLinks = new vis.DataSet([]);
+    graphNodes = new vis.DataSet([]);
+    network.setData({edges:graphLinks, nodes:graphNodes});
+
     // Make some pretty graphs
     if ( $("#graphtype").val() == "paths") {
       // find and graph shortest multiple paths
       console.log("Graphing paths...");
-      paths = [toNode];
-      i = 0;
-      while (paths[i] != fromNode && i < paths.length) {
-        $.each(paths[i].links, function(j, link) {
-          if (link.distance < paths[i].distance) {
-            graphLinks.add({from:paths[i].name, to:link.name});
-            if ($.inArray(link, paths) == -1) {
-              paths.push(link);
-            }
-          }
+      // start at toNode and work way back towards fromNode
+      pathToVisit = [toNode];
+      pathVisited = [];  // list of nodes that lie along shortest path(s)
+      while (pathToVisit.length > 0) {
+        // get the next node to visit, mark it as visited, and add it to graph
+        node = pathToVisit.shift()
+        pathVisited.push(node);
+        if (node == fromNode) break; // if we've reached fromNode then we're done
+        $.each(node.links, function(i, node2) {
+          if ($.inArray(node2, pathVisited) != -1) return true; // skip linked nodes we've already visited
+          if (node2.distance >= node.distance) return true; // skip linked nodes that aren't any closer to fromNode
+          if ($.inArray(node2, pathToVisit) == -1) pathToVisit.push(node2); // add linked node to list to visit
+          graphLinks.add({from:node.name, to:node2.name}); // add link to graph
         });
-        i++;
       }
-      $.each(paths, function(i, node) {
-        graphNodes.add({id:node.name, label:getLabel(node), group:getGroup(node, toNode, fromNode), level:node.distance});
+      // Add nodes to graph at 100ms intervals
+      $.each(pathVisited, function(i, node) {
+        timeOuts.push(setTimeout( function() {
+          graphNodes.add({
+            id:node.name, 
+            label:getLabel(node), 
+            group:getGroup(node, toNode, fromNode), 
+            level:node.distance})
+        }, 100 * i));
       });
     } else {
-      // graph a web of lies
+      // graph a radial network
       console.log("Graphing web...");
-      network.setData({edges:visitedLinks, nodes:graphNodes});
-      $.each(visited, function(i, node) {
-        graphNodes.add({id:node.name, label:getLabel(node), group:getGroup(node, toNode, fromNode), level:node.distance});
-        if (i > 100) return false;
+      // traverse the radial network with depth-first search
+      radialToVisit = [fromNode];
+      radialVisited = []; // list of nodes that lie along shortest path(s)
+      while (radialToVisit.length > 0) {
+        // get the next node to visit, mark it as visited, and add it to graph
+        node = radialToVisit.shift();
+        radialVisited.push(node);
+        $.each(node.radialLinks, function(i, node2) {
+          if ($.inArray(node2, radialVisited) != -1) return true; // skip linked nodes we've already visited
+          if ($.inArray(node2, radialToVisit) != -1) return true; // skip linked nodes we're already planning to visit
+          if (node2.distance > $("#graphtype").val()*2) return true; // skip nodes that are more than 6 quartets away from fromNode
+          graphLinks.add({from:node.name, to:node2.name}); // add link to graph
+          radialToVisit.push(node2); // add linked node to list to visit
+        });
+      }  
+      // Add nodes to graph at 100ms intervals
+      $.each(radialVisited, function(i, node) {
+        timeOuts.push(setTimeout( function() {
+          graphNodes.add({
+            id:node.name, 
+            label:getLabel(node), 
+            group:getGroup(node, toNode, fromNode), 
+            level:node.distance});
+          }, 100 * i));
       });
     }
     // Do the visualisation stuff
@@ -173,33 +232,58 @@ $(function() {
 
   <style type="text/css">
     #network {
+      float: left;
       width: 100%;
       height: 600px;
       border: 1px solid lightgray;
     }
+    #config {
+      float: right;
+      width: 40%;
+      height: 600px;
+      border: 1px solid lightgray;
+    }
+    #inputs, #result, #header {
+      width: 100%;
+      padding: 10px;
+    }
+    h1 {
+      margin: 5px;
+    }
+    #result p {
+      margin: 5px;
+    }
+    
   </style>
 
 </head>
 <body>
 
-<h2>Six Degrees of Nooj</h2>
-
 <div class="ui-widget">
-  <label for="from">From: </label>
-  <input id="from">
-  <label for="to">To: </label>
-  <input id="to" value="Nooj">
-  <label for="graphtype">Show me: </label>
-  <select id="graphtype">
-    <option value="paths">Paths between them</option>
-    <option value="web">Web around the first person</option>
-  </select>
-  <button id="go">Go!</button>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="about.html">About</a>
-  
-</div>
-<div id="result"><p>&nbsp;</p></div>
-<div id="network"></div>
+  <div id="header" class="ui-widget-header">
+    <h1>Six Degrees of Nooj</h1>
+  </div>
 
+  <div id="inputs" class="ui-widget">
+    <label for="from">From: </label>
+    <input id="from">
+    <label for="to">To: </label>
+    <input id="to" value="Nooj">
+    <label for="graphtype">Show me: </label>
+    <select id="graphtype">
+      <option id="paths" value="paths">Shortest paths between them</option>
+      <option id="2deg" value=2>2 degrees of x</option>
+      <option id="3deg" value=3>3 degrees of x</option>
+      <option id="4deg" value=4>4 degrees of x</option>
+      <option id="5deg" value=5>5 degrees of x</option>
+      <option id="6deg" value=6>6 degrees of x</option>
+    </select>
+    <button id="go">Go!</button>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="about.html">About</a>
+  </div>
+  <div id="result" class="ui-widget-container"><p>&nbsp;</p></div>
+  <div id="network" class="ui-widget-container"></div>
+</div>
+<!--<div id="config"></div>-->
 </body>
 </html>
