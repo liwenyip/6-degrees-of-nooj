@@ -138,8 +138,15 @@ $(function() {
     // Check if we reached the target and calculate shortest path
     console.log("Calculating shortest path...");
     msg = "<p>";
-    if (toNode.distance == -1) msg += fromNode.name + " is not connected to " + toNode.name;
-    else {
+    if (toNode == fromNode) {
+      if (toNode.name == "Nooj") {
+        msg += "Nooj has a Nooj number of 0. (duh)";
+      } else {
+        msg += fromNode.name + " is the same person as " + toNode.name;
+      }
+    } else if (toNode.distance == -1) {
+      msg += fromNode.name + " is not connected to " + toNode.name;
+    } else {
       // calculate distance
       if (toNode.name == "Nooj") {
         msg += fromNode.name + " has a Nooj number of " + toNode.distance	/2 + ": ";
